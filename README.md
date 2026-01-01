@@ -208,17 +208,6 @@ results = await redis_client.execute_command(
 - Handles 10K+ drivers in a city
 - Scales horizontally with Redis Cluster (production)
 
-### Why Not Use PostgreSQL GIS?
-
-| Feature | PostGIS | Redis Geo |
-|---------|---------|-----------|
-| Latency | 10-50ms | <1ms |
-| Consistency | Strong | Eventually consistent |
-| Updates/sec | ~1000 | ~100K+ |
-| Use Case | Historical data | Real-time lookups |
-
-**Decision**: Use Redis for real-time driver discovery, PostgreSQL for audit trails.
-
 ### Distance Metric: Haversine
 
 The driver discovery uses **Haversine distance** to account for **Earth's spherical shape**. Euclidian distance (flat) would give 5-15% errors; Hamming is for categorical data.
@@ -319,7 +308,6 @@ curl -X POST http://localhost:8000/v1/riders/register \
 ## Security Considerations
 
 - **Input validation**: Pydantic schemas validate all inputs
-- **SQL injection**: SQLAlchemy ORM parameterized queries
 - **Rate limiting**: Not yet implemented (add via middleware)
 - **Authentication**: Not yet implemented (add JWT layer)
 - **CORS**: Configured for dev UI (restrict in production)
@@ -357,7 +345,6 @@ goride/
 ## Future Enhancements
 
 - [ ] **Rate limiting**: Implement per-user/IP rate limits
-- [ ] **Authentication**: JWT-based auth for riders and drivers
 - [ ] **Real-time updates**: WebSocket support for live ride updates
 - [ ] **Analytics**: Prometheus metrics, Grafana dashboards
 - [ ] **Search history**: Cache recent rides/drivers
