@@ -29,7 +29,7 @@ function App() {
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
 
-  const apiBaseDisplay = useMemo(() => import.meta.env.VITE_API_BASE || "/v1", []);
+  const apiBaseDisplay = useMemo(() => "/v1", []);
 
   const appendLog = (title: string, payload?: unknown) => {
     setLogs((prev) => [{ id: prev.length + 1, title, payload, time: now() }, ...prev]);
@@ -119,7 +119,7 @@ function App() {
           <form onSubmit={handleCreate}>
             <div className="field-grid">
               <div>
-                <label htmlFor="rider">Rider ID (optional)</label>
+                <label htmlFor="rider">Rider ID</label>
                 <input id="rider" type="number" value={riderId} onChange={(e) => setRiderId(e.target.value)} placeholder="e.g. 101" />
               </div>
               <div>
@@ -137,7 +137,7 @@ function App() {
                 </select>
               </div>
               <div>
-                <label htmlFor="idem">Idempotency-Key (optional)</label>
+                <label htmlFor="idem">Idempotency-Key</label>
                 <input id="idem" value={idemKey} onChange={(e) => setIdemKey(e.target.value)} placeholder="uuid or custom token" />
               </div>
               <div>
