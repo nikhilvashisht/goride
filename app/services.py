@@ -75,15 +75,16 @@ def find_nearest_driver(pickup: Tuple[float, float], max_km: float = None) -> Op
 
 
 def create_assignment(conn, ride_id: int, driver_id: int) -> int:
-    # insert assignment and update ride status
-    res = conn.execute(
-        insert(models.assignments).values(ride_id=ride_id, driver_id=driver_id, status=models.ASSIGN_OFFERED, offered_at=datetime.now(timezone.utc))
-    )
-    assign_id = res.inserted_primary_key[0]
-    conn.execute(
-        update(models.rides).where(models.rides.c.id == ride_id).values(status=models.RIDE_ASSIGNED)
-    )
-    # start expiry watcher
+    # atomically insert assignment and update ride status
+    with conn.begin():
+        res = conn.execute(
+            insert(models.assignments).values(ride_id=ride_id, driver_id=driver_id, status=models.ASSIGN_OFFERED, offered_at=datetime.now(timezone.utc))
+        )
+        assign_id = res.inserted_primary_key[0]
+        conn.execute(
+            update(models.rides).where(models.rides.c.id == ride_id).values(status=models.RIDE_ASSIGNED)
+        )
+    # start expiry watcher after commit
     threading.Thread(target=_expire_assignment_worker, args=(assign_id,), daemon=True).start()
     return assign_id
 
@@ -107,19 +108,21 @@ def _expire_assignment_worker(assignment_id: int):
 
 def accept_assignment(conn, driver_id: int, assignment_id: int) -> Optional[dict]:
     sel = select(models.assignments).where(and_(models.assignments.c.id == assignment_id, models.assignments.c.driver_id == driver_id))
-    row = conn.execute(sel).first()
-    if not row:
-        return None
-    if row[models.assignments.c.status] != models.ASSIGN_OFFERED:
-        return None
-    conn.execute(
-        update(models.assignments).where(models.assignments.c.id == assignment_id).values(status=models.ASSIGN_ACCEPTED)
-    )
-    # create trip
-    res = conn.execute(
-        insert(models.trips).values(ride_id=row[models.assignments.c.ride_id], driver_id=driver_id, start_at=datetime.now(timezone.utc), status=models.TRIP_ONGOING)
-    )
-    trip_id = res.inserted_primary_key[0]
+    # perform select + update + insert in a transaction
+    with conn.begin():
+        row = conn.execute(sel).first()
+        if not row:
+            return None
+        if row[models.assignments.c.status] != models.ASSIGN_OFFERED:
+            return None
+        conn.execute(
+            update(models.assignments).where(models.assignments.c.id == assignment_id).values(status=models.ASSIGN_ACCEPTED)
+        )
+        # create trip
+        res = conn.execute(
+            insert(models.trips).values(ride_id=row[models.assignments.c.ride_id], driver_id=driver_id, start_at=datetime.now(timezone.utc), status=models.TRIP_ONGOING)
+        )
+        trip_id = res.inserted_primary_key[0]
     trip_sel = select(models.trips).where(models.trips.c.id == trip_id)
     trip_row = conn.execute(trip_sel).first()
     return dict(trip_row)
@@ -146,14 +149,15 @@ def end_trip(conn, trip_id: int, end_loc: Optional[Tuple[float, float]] = None) 
     per_km = 1.5
     per_min = 0.2
     fare = base + distance_km * per_km + (duration_sec / 60.0) * per_min
-    conn.execute(
-        update(models.trips)
-        .where(models.trips.c.id == trip_id)
-        .values(end_at=end_at, distance_km=distance_km, duration_sec=duration_sec, fare=fare, status=models.TRIP_COMPLETED)
-    )
-    # create payment
-    res = conn.execute(insert(models.payments).values(trip_id=trip_id, amount=fare, status=models.PAY_PENDING))
-    payment_id = res.inserted_primary_key[0]
+    # update trip and insert payment atomically
+    with conn.begin():
+        conn.execute(
+            update(models.trips)
+            .where(models.trips.c.id == trip_id)
+            .values(end_at=end_at, distance_km=distance_km, duration_sec=duration_sec, fare=fare, status=models.TRIP_COMPLETED)
+        )
+        res = conn.execute(insert(models.payments).values(trip_id=trip_id, amount=fare, status=models.PAY_PENDING))
+        payment_id = res.inserted_primary_key[0]
     # simulate payment in background
     threading.Thread(target=_simulate_payment, args=(payment_id,), daemon=True).start()
     trip.update({"end_at": end_at, "distance_km": distance_km, "duration_sec": duration_sec, "fare": fare, "status": models.TRIP_COMPLETED})
