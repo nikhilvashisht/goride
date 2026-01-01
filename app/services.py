@@ -1,5 +1,5 @@
 from math import radians, cos, sin, asin, sqrt
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Tuple
 from .config import settings
 from . import db, models
@@ -77,7 +77,7 @@ def find_nearest_driver(pickup: Tuple[float, float], max_km: float = None) -> Op
 def create_assignment(conn, ride_id: int, driver_id: int) -> int:
     # insert assignment and update ride status
     res = conn.execute(
-        insert(models.assignments).values(ride_id=ride_id, driver_id=driver_id, status=models.ASSIGN_OFFERED, offered_at=datetime.utcnow())
+        insert(models.assignments).values(ride_id=ride_id, driver_id=driver_id, status=models.ASSIGN_OFFERED, offered_at=datetime.now(timezone.utc))
     )
     assign_id = res.inserted_primary_key[0]
     conn.execute(
@@ -117,7 +117,7 @@ def accept_assignment(conn, driver_id: int, assignment_id: int) -> Optional[dict
     )
     # create trip
     res = conn.execute(
-        insert(models.trips).values(ride_id=row[models.assignments.c.ride_id], driver_id=driver_id, start_at=datetime.utcnow(), status=models.TRIP_ONGOING)
+        insert(models.trips).values(ride_id=row[models.assignments.c.ride_id], driver_id=driver_id, start_at=datetime.now(timezone.utc), status=models.TRIP_ONGOING)
     )
     trip_id = res.inserted_primary_key[0]
     trip_sel = select(models.trips).where(models.trips.c.id == trip_id)
@@ -133,7 +133,7 @@ def end_trip(conn, trip_id: int, end_loc: Optional[Tuple[float, float]] = None) 
         return None
     # convert to mutable dict
     trip = dict(row)
-    end_at = datetime.utcnow()
+    end_at = datetime.now(timezone.utc)
     distance_km = trip.get("distance_km", 0.0)
     if end_loc:
         start_loc = get_driver_location(trip.get("driver_id"))
