@@ -36,3 +36,24 @@ class EndTripRequest(BaseModel):
 class PaymentRequest(BaseModel):
     trip_id: int
     method: Optional[str] = "card"
+
+
+class RiderRegister(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    mobile_number: str = Field(..., min_length=10, max_length=15)
+    email: Optional[str] = Field(None, max_length=255)
+    address: Optional[str] = Field(None, max_length=500)
+
+
+class DriverRegister(BaseModel):
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    mobile_number: str = Field(..., min_length=10, max_length=15)
+    email: Optional[str] = Field(None, max_length=255)
+    address: Optional[str] = Field(None, max_length=500)
+
+
+class UserRegistrationResponse(BaseModel):
+    user_id: int
+    message: str

@@ -38,15 +38,25 @@ riders = Table(
     "riders",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("name", String, nullable=True),
+    Column("first_name", String, nullable=False),
+    Column("last_name", String, nullable=False),
+    Column("mobile_number", String, nullable=False, unique=True),
+    Column("email", String, nullable=True),
+    Column("address", String, nullable=True),
+    Column("created_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
 )
 
 drivers = Table(
     "drivers",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("name", String, nullable=True),
+    Column("first_name", String, nullable=False),
+    Column("last_name", String, nullable=False),
+    Column("mobile_number", String, nullable=False, unique=True),
+    Column("email", String, nullable=True),
+    Column("address", String, nullable=True),
     Column("available", Boolean, default=True),
+    Column("created_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
 )
 
 rides = Table(
