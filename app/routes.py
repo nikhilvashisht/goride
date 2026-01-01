@@ -134,17 +134,65 @@ async def end_trip(trip_id: int, payload: schemas.EndTripRequest, conn=Depends(g
     return {"trip_id": trip.get('id'), "fare": trip.get('fare'), "status": trip.get('status')}
 
 
-@router.post("/payments")
+@router.post("/payments", response_model=schemas.Receipt)
 async def trigger_payment(req: schemas.PaymentRequest, conn=Depends(get_conn)):
+    # Get payment record
     p_sel = select(models.payments).where(models.payments.c.trip_id == req.trip_id).order_by(desc(models.payments.c.id))
     p_res = await conn.execute(p_sel)
     p = p_res.first()
     if not p:
         raise HTTPException(status_code=404, detail="payment not found")
-    if p[models.payments.c.status] == models.PAY_PENDING:
-        logger.info("trigger_payment: scheduling payment simulation for payment_id=%s", p[models.payments.c.id])
-        asyncio.create_task(services._simulate_payment(p[models.payments.c.id]))
-    return {"payment_id": p[models.payments.c.id], "status": p[models.payments.c.status]}
+    
+    payment_id = p[models.payments.c.id]
+    amount = p[models.payments.c.amount]
+    payment_status = p[models.payments.c.status]
+    
+    # Get trip details
+    t_sel = select(models.trips).where(models.trips.c.id == req.trip_id)
+    t_res = await conn.execute(t_sel)
+    t = t_res.first()
+    if not t:
+        raise HTTPException(status_code=404, detail="trip not found")
+    
+    trip_id = t[models.trips.c.id]
+    ride_id = t[models.trips.c.ride_id]
+    driver_id = t[models.trips.c.driver_id]
+    distance_km = t[models.trips.c.distance_km]
+    duration_sec = t[models.trips.c.duration_sec]
+    
+    # Get ride details
+    r_sel = select(models.rides).where(models.rides.c.id == ride_id)
+    r_res = await conn.execute(r_sel)
+    r = r_res.first()
+    if not r:
+        raise HTTPException(status_code=404, detail="ride not found")
+    
+    rider_id = r[models.rides.c.rider_id]
+    pickup = r[models.rides.c.pickup]
+    destination = r[models.rides.c.destination]
+    payment_method = r[models.rides.c.payment_method]
+    
+    # Trigger payment if pending
+    if payment_status == models.PAY_PENDING:
+        logger.info("trigger_payment: scheduling payment simulation for payment_id=%s", payment_id)
+        asyncio.create_task(services._simulate_payment(payment_id))
+    
+    logger.info("payment_receipt: payment_id=%s trip_id=%s amount=%.2f", payment_id, trip_id, amount)
+    
+    return schemas.Receipt(
+        payment_id=payment_id,
+        trip_id=trip_id,
+        rider_id=rider_id,
+        driver_id=driver_id,
+        amount=amount,
+        payment_method=payment_method,
+        status=payment_status,
+        distance_km=distance_km,
+        duration_sec=duration_sec,
+        pickup=pickup,
+        destination=destination,
+        timestamp=datetime.now(timezone.utc)
+    )
 
 
 @router.post("/riders/register", response_model=schemas.UserRegistrationResponse, status_code=201)

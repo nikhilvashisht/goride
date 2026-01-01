@@ -1,5 +1,5 @@
 database:
-  url: postgresql+asyncpg://postgres@localhost:5432/goride
+  url: postgresql+asyncpg://postgres:sample_pass_34@localhost:5432/goride
   pool_size: 5
   max_overflow: 10
   pool_timeout: 30

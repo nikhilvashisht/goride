@@ -57,3 +57,18 @@ class DriverRegister(BaseModel):
 class UserRegistrationResponse(BaseModel):
     user_id: int
     message: str
+
+
+class Receipt(BaseModel):
+    payment_id: int
+    trip_id: int
+    rider_id: Optional[int]
+    driver_id: int
+    amount: float
+    payment_method: str
+    status: str
+    distance_km: float
+    duration_sec: int
+    pickup: dict
+    destination: dict
+    timestamp: datetime
