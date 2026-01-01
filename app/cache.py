@@ -1,12 +1,12 @@
-from redis import Redis
+from redis.asyncio import Redis
 from .config import settings
 
 
 redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
-def ping() -> bool:
+async def ping() -> bool:
     try:
-        return redis_client.ping()
+        return await redis_client.ping()
     except Exception:
         return False

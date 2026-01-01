@@ -6,3 +6,6 @@ python-dotenv
 httpx
 psycopg2-binary
 h3
+asyncpg
+SQLAlchemy>=1.4
+redis>=4.3

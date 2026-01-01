@@ -6,8 +6,6 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     MATCH_RADIUS_KM: float = 5.0
     ASSIGNMENT_TTL_SEC: int = 10
-    H3_RESOLUTION: int = 8
-    H3_MAX_K_RING: int = 2
     
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
