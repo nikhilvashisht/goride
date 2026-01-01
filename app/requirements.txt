@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+redis
+python-dotenv
+httpx
+psycopg2-binary
+h3
