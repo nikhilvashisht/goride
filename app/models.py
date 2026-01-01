@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Table,
     Column,
@@ -59,7 +59,7 @@ rides = Table(
     Column("tier", String),
     Column("payment_method", String),
     Column("status", String, default=RIDE_SEARCHING),
-    Column("created_at", DateTime, default=datetime.timezone.utc),
+    Column("created_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
 )
 
 assignments = Table(
@@ -69,7 +69,7 @@ assignments = Table(
     Column("ride_id", Integer),
     Column("driver_id", Integer),
     Column("status", String, default=ASSIGN_OFFERED),
-    Column("offered_at", DateTime, default=datetime.timezone.utc),
+    Column("offered_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
     Column("metadata", JSON, nullable=True),
 )
 
@@ -79,8 +79,8 @@ trips = Table(
     Column("id", Integer, primary_key=True),
     Column("ride_id", Integer),
     Column("driver_id", Integer),
-    Column("start_at", DateTime, default=datetime.utcnow),
-    Column("end_at", DateTime, nullable=True),
+    Column("start_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
+    Column("end_at", DateTime(timezone=True), nullable=True),
     Column("distance_km", Float, default=0.0),
     Column("duration_sec", Integer, default=0),
     Column("fare", Float, default=0.0),
@@ -102,6 +102,6 @@ idempotency_keys = Table(
     metadata,
     Column("id", Integer, primary_key=True),
     Column("key", String, unique=True),
-    Column("created_at", DateTime, default=datetime.utcnow),
+    Column("created_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
     Column("response", JSON, nullable=True),
 )

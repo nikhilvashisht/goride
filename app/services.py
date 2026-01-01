@@ -6,6 +6,9 @@ from . import db, models
 from sqlalchemy import select, insert, update, and_, desc
 import asyncio
 from .cache import redis_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def haversine_km(a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -27,6 +30,7 @@ async def update_driver_location(driver_id: int, lat: float, lon: float):
     # store lat/lon in hash for quick lookup
     await redis_client.hset(driver_key, mapping={"lat": lat, "lon": lon})
     await redis_client.execute_command("GEOADD", "drivers_geo", lon, lat, driver_id)
+    logger.debug("update_driver_location: driver=%s lat=%s lon=%s", driver_id, lat, lon)
 
 async def get_driver_location(driver_id: int) -> Optional[Tuple[float, float]]:
     driver_key = f"driver:{driver_id}"
@@ -50,6 +54,7 @@ async def find_nearest_driver(pickup: Tuple[float, float], max_km: float = None)
     try:
         res = await redis_client.execute_command("GEORADIUS", "drivers_geo", lon, lat, max_km, "km", "WITHDIST", "COUNT", 50, "ASC")
     except Exception:
+        logger.exception("find_nearest_driver: redis GEORADIUS failed")
         return None
     if not res:
         return None
@@ -74,6 +79,7 @@ async def find_nearest_driver(pickup: Tuple[float, float], max_km: float = None)
             continue
         dist = haversine_km(pickup, loc)
         if dist <= max_km:
+            logger.info("find_nearest_driver: found driver=%s dist_km=%.3f", did, dist)
             return did
     return None
 
@@ -88,6 +94,7 @@ async def create_assignment(conn, ride_id: int, driver_id: int) -> int:
         await conn.execute(
             update(models.rides).where(models.rides.c.id == ride_id).values(status=models.RIDE_ASSIGNED)
         )
+    logger.info("create_assignment: assign_id=%s ride=%s driver=%s", assign_id, ride_id, driver_id)
     # start expiry watcher after commit
     asyncio.create_task(_expire_assignment_worker(assign_id))
     return assign_id
@@ -109,6 +116,7 @@ async def _expire_assignment_worker(assignment_id: int):
                 await conn.execute(
                     update(models.rides).where(models.rides.c.id == row[models.assignments.c.ride_id]).values(status=models.RIDE_SEARCHING)
                 )
+                logger.info("expire_assignment: assignment=%s expired", assignment_id)
 
 
 
@@ -119,20 +127,30 @@ async def accept_assignment(conn, driver_id: int, assignment_id: int) -> Optiona
         res = await conn.execute(sel)
         row = res.first()
         if not row:
+            logger.warning("accept_assignment: assignment=%s driver=%s not found", assignment_id, driver_id)
             return None
-        if row[models.assignments.c.status] != models.ASSIGN_OFFERED:
+        rm = row._mapping if hasattr(row, "_mapping") else None
+        assignment_status = rm[models.assignments.c.status] if rm else row[3]
+        if assignment_status != models.ASSIGN_OFFERED:
+            logger.warning("accept_assignment: assignment=%s status=%s not offered", assignment_id, assignment_status)
             return None
         await conn.execute(
             update(models.assignments).where(models.assignments.c.id == assignment_id).values(status=models.ASSIGN_ACCEPTED)
         )
         # create trip
+        ride_id = rm[models.assignments.c.ride_id] if rm else row[1]
         res2 = await conn.execute(
-            insert(models.trips).returning(models.trips.c.id).values(ride_id=row[models.assignments.c.ride_id], driver_id=driver_id, start_at=datetime.now(timezone.utc), status=models.TRIP_ONGOING)
+            insert(models.trips).returning(models.trips.c.id).values(ride_id=ride_id, driver_id=driver_id, start_at=datetime.now(timezone.utc), status=models.TRIP_ONGOING)
         )
         trip_id = res2.scalar_one()
+        logger.info("accept_assignment: assignment=%s trip=%s driver=%s", assignment_id, trip_id, driver_id)
     trip_sel = select(models.trips).where(models.trips.c.id == trip_id)
     trip_row = (await conn.execute(trip_sel)).first()
-    return dict(trip_row) if trip_row else None
+    if trip_row:
+        # Convert row to dict using _mapping if available
+        trip_dict = dict(trip_row._mapping) if hasattr(trip_row, "_mapping") else {"id": trip_row[0], "status": trip_row[6] if len(trip_row) > 6 else None}
+        return trip_dict
+    return None
 
 
 
@@ -156,6 +174,7 @@ async def end_trip(conn, trip_id: int, end_loc: Optional[Tuple[float, float]] = 
     per_km = 1.5
     per_min = 0.2
     fare = base + distance_km * per_km + (duration_sec / 60.0) * per_min
+    logger.info("end_trip: trip=%s end_loc=%s", trip_id, end_loc)
     # update trip and insert payment atomically
     async with conn.begin():
         await conn.execute(
@@ -178,3 +197,4 @@ async def _simulate_payment(payment_id: int):
         await conn.execute(
             update(models.payments).where(models.payments.c.id == payment_id).values(status=models.PAY_SUCCESS, provider_response={"provider": "simulated", "id": f"pay_{payment_id}"})
         )
+    logger.info("_simulate_payment: payment=%s marked success", payment_id)

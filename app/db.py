@@ -1,15 +1,20 @@
+
 from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from contextlib import asynccontextmanager
 from .config import settings
 
+# Ensure the DATABASE_URL uses an async driver (asyncpg) for SQLAlchemy asyncio
+if settings.DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in settings.DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL must use an async driver for async SQLAlchemy (e.g. postgresql+asyncpg://...). "
+        "Update your DATABASE_URL or set the DATABASE_URL environment variable accordingly."
+    )
+
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DB_ECHO,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_timeout=settings.DB_POOL_TIMEOUT,
-    pool_recycle=settings.DB_POOL_RECYCLE,
+    # Async engines use different pool configurations; keep defaults for now
 )
 metadata = MetaData()
 
