@@ -101,6 +101,10 @@ async def get_ride(ride_id: int, conn=Depends(get_conn)):
 
 @router.post("/drivers/{driver_id}/location")
 async def driver_location(driver_id: int, loc: schemas.Location, conn=Depends(get_conn)):
+    # Validate driver_id
+    if not isinstance(driver_id, int) or driver_id <= 0:
+        raise HTTPException(status_code=422, detail="driver_id must be a positive integer")
+    
     # store location in redis (async)
     await services.update_driver_location(driver_id, loc.lat, loc.lon)
     logger.debug("driver_location: driver=%s lat=%s lon=%s", driver_id, loc.lat, loc.lon)
@@ -115,6 +119,10 @@ async def driver_location(driver_id: int, loc: schemas.Location, conn=Depends(ge
 
 @router.post("/drivers/{driver_id}/accept")
 async def driver_accept(driver_id: int, payload: schemas.AcceptRequest, conn=Depends(get_conn)):
+    # Validate driver_id
+    if not isinstance(driver_id, int) or driver_id <= 0:
+        raise HTTPException(status_code=422, detail="driver_id must be a positive integer")
+    
     logger.info("driver_accept: driver=%s assignment=%s", driver_id, payload.assignment_id)
     trip = await services.accept_assignment(conn, driver_id, payload.assignment_id)
     if not trip:
@@ -124,6 +132,10 @@ async def driver_accept(driver_id: int, payload: schemas.AcceptRequest, conn=Dep
 
 @router.post("/trips/{trip_id}/end")
 async def end_trip(trip_id: int, payload: schemas.EndTripRequest, conn=Depends(get_conn)):
+    # Validate trip_id
+    if not isinstance(trip_id, int) or trip_id <= 0:
+        raise HTTPException(status_code=422, detail="trip_id must be a positive integer")
+    
     end_loc = None
     if payload.end_lat is not None and payload.end_lon is not None:
         end_loc = (payload.end_lat, payload.end_lon)
