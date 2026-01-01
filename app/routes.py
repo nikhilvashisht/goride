@@ -151,15 +151,15 @@ async def trigger_payment(req: schemas.PaymentRequest, conn=Depends(get_conn)):
 async def register_rider(req: schemas.RiderRegister, conn=Depends(get_conn)):
     logger.info("register_rider: mobile=%s", req.mobile_number)
     
-    # Check if mobile number already exists
-    check_sel = select(models.riders).where(models.riders.c.mobile_number == req.mobile_number)
-    check_res = await conn.execute(check_sel)
-    existing = check_res.first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Mobile number already registered")
-    
-    # Atomic insert within transaction
     async with conn.begin():
+        # Check if mobile number already exists
+        check_sel = select(models.riders).where(models.riders.c.mobile_number == req.mobile_number)
+        check_res = await conn.execute(check_sel)
+        existing = check_res.first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Mobile number already registered")
+        
+        # Atomic insert within same transaction
         res = await conn.execute(
             models.riders.insert().returning(models.riders.c.id).values(
                 first_name=req.first_name,
@@ -180,15 +180,15 @@ async def register_rider(req: schemas.RiderRegister, conn=Depends(get_conn)):
 async def register_driver(req: schemas.DriverRegister, conn=Depends(get_conn)):
     logger.info("register_driver: mobile=%s", req.mobile_number)
     
-    # Check if mobile number already exists
-    check_sel = select(models.drivers).where(models.drivers.c.mobile_number == req.mobile_number)
-    check_res = await conn.execute(check_sel)
-    existing = check_res.first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Mobile number already registered")
-    
-    # Atomic insert within transaction
     async with conn.begin():
+        # Check if mobile number already exists
+        check_sel = select(models.drivers).where(models.drivers.c.mobile_number == req.mobile_number)
+        check_res = await conn.execute(check_sel)
+        existing = check_res.first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Mobile number already registered")
+        
+        # Atomic insert within same transaction
         res = await conn.execute(
             models.drivers.insert().returning(models.drivers.c.id).values(
                 first_name=req.first_name,
