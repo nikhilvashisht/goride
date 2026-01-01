@@ -3,4 +3,3 @@ app/.env
 app/logs/
 ui/node_modules/
 app/__pycache__/
-scripts/

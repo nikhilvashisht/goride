@@ -37,6 +37,68 @@ Base path: `/v1`
 
 ---
 
+## POST /v1/riders/register
+- Method: POST
+- Description: Register a new rider. Mobile number must be unique.
+- Status Code: 201 Created
+- Request JSON schema:
+
+```json
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "mobile_number": "9876543210",
+  "email": "john@example.com",        // optional
+  "address": "123 Main St, City"      // optional
+}
+```
+
+- Response:
+
+```json
+{
+  "user_id": 42,
+  "message": "Rider registered successfully"
+}
+```
+
+- Errors:
+  - `400 Bad Request`: Mobile number already registered
+  - `422 Unprocessable Entity`: Invalid input (e.g., mobile_number too short)
+
+---
+
+## POST /v1/drivers/register
+- Method: POST
+- Description: Register a new driver. Mobile number must be unique.
+- Status Code: 201 Created
+- Request JSON schema:
+
+```json
+{
+  "first_name": "Jane",
+  "last_name": "Smith",
+  "mobile_number": "9876543211",
+  "email": "jane@example.com",        // optional
+  "address": "456 Oak Ave, City"      // optional
+}
+```
+
+- Response:
+
+```json
+{
+  "user_id": 5,
+  "message": "Driver registered successfully"
+}
+```
+
+- Errors:
+  - `400 Bad Request`: Mobile number already registered
+  - `422 Unprocessable Entity`: Invalid input (e.g., mobile_number too short)
+
+---
+
 ## GET /v1/rides/{id}
 - Method: GET
 - Description: Retrieve ride status and assignment (if any).
@@ -118,7 +180,7 @@ Base path: `/v1`
 
 ## POST /v1/payments
 - Method: POST
-- Description: Trigger the payment flow for a trip's payment record.
+- Description: Trigger the payment flow for a trip's payment record. Returns a detailed receipt.
 - Request JSON schema:
 
 ```json
@@ -128,7 +190,20 @@ Base path: `/v1`
 - Response:
 
 ```json
-{ "payment_id": 200, "status": "pending" }
+{
+  "payment_id": 200,
+  "trip_id": 100,
+  "rider_id": 1,
+  "driver_id": 5,
+  "amount": 45.50,
+  "payment_method": "card",
+  "status": "pending",
+  "distance_km": 12.5,
+  "duration_sec": 1200,
+  "pickup": {"lat": 12.9716, "lon": 77.5946},
+  "destination": {"lat": 12.9750, "lon": 77.6000},
+  "timestamp": "2026-01-02T15:30:00+00:00"
+}
 ```
 
 Notes:
