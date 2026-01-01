@@ -1,0 +1,14 @@
+database:
+  url: postgresql+asyncpg://postgres@localhost:5432/goride
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: -1
+  echo: false
+
+redis:
+  url: redis://localhost:6379/0
+
+matching:
+  radius_km: 5.0
+  assignment_ttl_sec: 10

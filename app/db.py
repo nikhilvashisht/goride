@@ -13,8 +13,7 @@ if settings.DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in setti
 
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DB_ECHO,
-    # Async engines use different pool configurations; keep defaults for now
+    echo=settings.DB_ECHO
 )
 metadata = MetaData()
 
