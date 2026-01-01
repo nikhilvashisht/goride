@@ -2,7 +2,7 @@
 
 Goride is a high-performance, asynchronous ride-hailing microservice built with **FastAPI**, **PostgreSQL**, and **Redis**. It demonstrates production-grade patterns for distributed systems: atomic transactions, caching strategies, geospatial indexing, and service isolation.
 
-## 📋 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.8+
@@ -28,7 +28,7 @@ Services will be available at:
 - **Driver Discovery**: http://127.0.0.1:8001
 - **UI**: http://127.0.0.1:5173
 
-## 🏗️ Architecture
+## Architecture
 
 ### System Overview
 
@@ -232,7 +232,7 @@ Haversine → 5.2 km ✓ (correct)
 Euclidian → meaningless units ✗ (treats Earth as flat)
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 Settings are loaded from [app/application.yaml](app/application.yaml) with environment variable overrides:
 
@@ -256,7 +256,7 @@ export DATABASE_URL="postgresql+asyncpg://user:pass@prod-db:5432/goride"
 ./scripts/run_stack.sh
 ```
 
-## 🚀 Deployment
+## Deployment
 
 ### Single-Box Development
 ```bash
