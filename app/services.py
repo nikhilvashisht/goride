@@ -25,21 +25,75 @@ def haversine_km(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     return km
 
 
+async def invalidate_driver_cache(driver_id: int):
+    """Remove driver from all caches (hash and geo index)."""
+    driver_key = f"driver:{driver_id}"
+    await redis_client.delete(driver_key)
+    await redis_client.zrem("drivers_geo", driver_id)
+    logger.info("cache_invalidated: driver=%s", driver_id)
+
+
+async def cleanup_stale_drivers():
+    """Background task to remove stale drivers from geo index.
+    
+    Removes drivers from geo index whose hash keys have expired.
+    """
+    try:
+        # Get all driver IDs from geo index
+        all_drivers = await redis_client.zrange("drivers_geo", 0, -1)
+        removed_count = 0
+        for driver_id in all_drivers:
+            driver_key = f"driver:{driver_id}"
+            # Check if hash key still exists
+            if not await redis_client.exists(driver_key):
+                # Hash expired, remove from geo index
+                await redis_client.zrem("drivers_geo", driver_id)
+                removed_count += 1
+        if removed_count > 0:
+            logger.info("cleanup_stale_drivers: removed %d stale drivers from geo index", removed_count)
+    except Exception as e:
+        logger.error("cleanup_stale_drivers: error during cleanup: %s", e)
+
+
 async def update_driver_location(driver_id: int, lat: float, lon: float):
     driver_key = f"driver:{driver_id}"
-    # store lat/lon in hash for quick lookup
-    await redis_client.hset(driver_key, mapping={"lat": lat, "lon": lon})
+    # store lat/lon in hash for quick lookup with timestamp
+    await redis_client.hset(driver_key, mapping={
+        "lat": lat, 
+        "lon": lon,
+        "timestamp": datetime.now(timezone.utc).timestamp()
+    })
+    # Set TTL of 5 minutes (300 seconds)
+    await redis_client.expire(driver_key, 300)
     await redis_client.execute_command("GEOADD", "drivers_geo", lon, lat, driver_id)
     logger.debug("update_driver_location: driver=%s lat=%s lon=%s", driver_id, lat, lon)
 
-async def get_driver_location(driver_id: int) -> Optional[Tuple[float, float]]:
+async def get_driver_location(driver_id: int, max_age_sec: int = 300) -> Optional[Tuple[float, float]]:
+    """Get driver location from cache with freshness validation.
+    
+    Args:
+        driver_id: The driver ID
+        max_age_sec: Maximum age of cached data in seconds (default 5 minutes)
+    
+    Returns:
+        Tuple of (lat, lon) or None if not found or stale
+    """
     driver_key = f"driver:{driver_id}"
     data = await redis_client.hgetall(driver_key)
     if not data:
         return None
     try:
+        # Validate freshness if timestamp exists
+        if "timestamp" in data:
+            timestamp = float(data["timestamp"])
+            age = datetime.now(timezone.utc).timestamp() - timestamp
+            if age > max_age_sec:
+                logger.debug("get_driver_location: driver=%s location stale (age=%.1fs), invalidating", driver_id, age)
+                await invalidate_driver_cache(driver_id)
+                return None
         return (float(data.get("lat")), float(data.get("lon")))
-    except Exception:
+    except Exception as e:
+        logger.warning("get_driver_location: driver=%s error parsing data: %s", driver_id, e)
         return None
 
 

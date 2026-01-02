@@ -20,7 +20,7 @@ metadata = MetaData()
 
 @asynccontextmanager
 async def get_conn():
-    async with engine.connect() as conn:
+    async with engine.begin() as conn:
         yield conn
 
 

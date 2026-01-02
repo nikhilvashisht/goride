@@ -37,12 +37,11 @@ async def create_ride(req: schemas.RideCreate, request: Request, idempotency_key
             return ex[models.idempotency_keys.c.response]
 
     logger.info("create_ride: rider=%s pickup=%s", req.rider_id, req.pickup.dict())
-    async with conn.begin():
-        res = await conn.execute(
-            models.rides.insert().returning(models.rides.c.id).values(rider_id=req.rider_id, pickup=req.pickup.dict(), destination=req.destination.dict(), tier=req.tier, payment_method=req.payment_method, status=models.RIDE_SEARCHING, created_at=datetime.now(timezone.utc))
-        )
-        ride_id = res.scalar_one()
-        status = models.RIDE_SEARCHING
+    res = await conn.execute(
+        models.rides.insert().returning(models.rides.c.id).values(rider_id=req.rider_id, pickup=req.pickup.dict(), destination=req.destination.dict(), tier=req.tier, payment_method=req.payment_method, status=models.RIDE_SEARCHING, created_at=datetime.now(timezone.utc))
+    )
+    ride_id = res.scalar_one()
+    status = models.RIDE_SEARCHING
 
     # Call driver discovery service to find a nearby driver
     try:
@@ -57,7 +56,7 @@ async def create_ride(req: schemas.RideCreate, request: Request, idempotency_key
                 driver_id = match_data.get("driver_id")
                 if driver_id:
                     # Create assignment if driver found
-                    async with db.engine.connect() as conn2:
+                    async with db.engine.begin() as conn2:
                         await services.create_assignment(conn2, ride_id, driver_id)
                         status = models.RIDE_ASSIGNED
                         logger.info("assignment_created_from_discovery: ride=%s driver=%s", ride_id, driver_id)
@@ -211,26 +210,25 @@ async def trigger_payment(req: schemas.PaymentRequest, conn=Depends(get_conn)):
 async def register_rider(req: schemas.RiderRegister, conn=Depends(get_conn)):
     logger.info("register_rider: mobile=%s", req.mobile_number)
     
-    async with conn.begin():
-        # Check if mobile number already exists
-        check_sel = select(models.riders).where(models.riders.c.mobile_number == req.mobile_number)
-        check_res = await conn.execute(check_sel)
-        existing = check_res.first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Mobile number already registered")
-        
-        # Atomic insert within same transaction
-        res = await conn.execute(
-            models.riders.insert().returning(models.riders.c.id).values(
-                first_name=req.first_name,
-                last_name=req.last_name,
-                mobile_number=req.mobile_number,
-                email=req.email,
-                address=req.address,
-                created_at=datetime.now(timezone.utc)
-            )
+    # Check if mobile number already exists
+    check_sel = select(models.riders).where(models.riders.c.mobile_number == req.mobile_number)
+    check_res = await conn.execute(check_sel)
+    existing = check_res.first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Mobile number already registered")
+    
+    # Atomic insert within same transaction
+    res = await conn.execute(
+        models.riders.insert().returning(models.riders.c.id).values(
+            first_name=req.first_name,
+            last_name=req.last_name,
+            mobile_number=req.mobile_number,
+            email=req.email,
+            address=req.address,
+            created_at=datetime.now(timezone.utc)
         )
-        user_id = res.scalar_one()
+    )
+    user_id = res.scalar_one()
     
     logger.info("rider_registered: user_id=%s mobile=%s", user_id, req.mobile_number)
     return schemas.UserRegistrationResponse(user_id=user_id, message="Rider registered successfully")
@@ -240,27 +238,26 @@ async def register_rider(req: schemas.RiderRegister, conn=Depends(get_conn)):
 async def register_driver(req: schemas.DriverRegister, conn=Depends(get_conn)):
     logger.info("register_driver: mobile=%s", req.mobile_number)
     
-    async with conn.begin():
-        # Check if mobile number already exists
-        check_sel = select(models.drivers).where(models.drivers.c.mobile_number == req.mobile_number)
-        check_res = await conn.execute(check_sel)
-        existing = check_res.first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Mobile number already registered")
-        
-        # Atomic insert within same transaction
-        res = await conn.execute(
-            models.drivers.insert().returning(models.drivers.c.id).values(
-                first_name=req.first_name,
-                last_name=req.last_name,
-                mobile_number=req.mobile_number,
-                email=req.email,
-                address=req.address,
-                available=True,
-                created_at=datetime.now(timezone.utc)
-            )
+    # Check if mobile number already exists
+    check_sel = select(models.drivers).where(models.drivers.c.mobile_number == req.mobile_number)
+    check_res = await conn.execute(check_sel)
+    existing = check_res.first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Mobile number already registered")
+    
+    # Atomic insert within same transaction
+    res = await conn.execute(
+        models.drivers.insert().returning(models.drivers.c.id).values(
+            first_name=req.first_name,
+            last_name=req.last_name,
+            mobile_number=req.mobile_number,
+            email=req.email,
+            address=req.address,
+            available=True,
+            created_at=datetime.now(timezone.utc)
         )
-        user_id = res.scalar_one()
+    )
+    user_id = res.scalar_one()
     
     logger.info("driver_registered: user_id=%s mobile=%s", user_id, req.mobile_number)
     return schemas.UserRegistrationResponse(user_id=user_id, message="Driver registered successfully")

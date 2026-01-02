@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import router as api_router
 from .logging_setup import configure_logging
+from . import services
 import logging
+import asyncio
 
 # configure file logging for the app
 configure_logging()
@@ -22,9 +24,19 @@ app.add_middleware(
 app.include_router(api_router, prefix="/v1")
 
 
+async def periodic_cache_cleanup():
+    """Run cache cleanup every 60 seconds."""
+    while True:
+        await asyncio.sleep(60)
+        await services.cleanup_stale_drivers()
+
+
 @app.on_event("startup")
 async def _startup_log():
     logger.info("Starting Goride API application")
+    # Start background cleanup task
+    asyncio.create_task(periodic_cache_cleanup())
+    logger.info("Started periodic cache cleanup task")
 
 
 @app.get("/")
