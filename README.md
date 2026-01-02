@@ -350,7 +350,8 @@ goride/
 
 ## New Relic Integration
 
-<img width="1920" height="1053" alt="goride - New Relic - Brave_001" src="https://github.com/user-attachments/assets/97383a82-d6e3-484a-89d4-175c8822934b" />
+<img width="1920" height="1053" alt="image" src="https://github.com/user-attachments/assets/f1d9ca9e-9636-45f2-889f-017703fa5cc7" />
+
 
 
 ## Future Enhancements
