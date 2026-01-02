@@ -300,17 +300,6 @@ curl -X POST http://localhost:8000/v1/riders/register \
   }'
 ```
 
-## Performance Characteristics
-
-| Operation | Latency | Notes |
-|-----------|---------|-------|
-| Create ride | 50-200ms | Includes driver discovery call |
-| Driver discovery | <10ms | Redis GeoRadius |
-| Get ride status | <5ms | Single DB query |
-| Register user | 10-30ms | Atomic transaction |
-| Update driver location | <5ms | Redis write |
-| Payment receipt | 20-50ms | Multi-table join |
-
 ## Security Considerations
 
 - **Input validation**: Pydantic schemas validate all inputs
