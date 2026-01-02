@@ -176,6 +176,9 @@ await redis_client.hset(driver_key, mapping={
     "lon": lon
 })
 ```
+### Cache Invalidation
+
+Used a TTL based stratergy and regular refreshing of cache to invalidate older records. This ensure data consistency and avoid fetching stale data. 
 
 **Benefits:**
 - **Sub-millisecond lookups**: Redis in-memory vs. PostgreSQL disk I/O
@@ -350,7 +353,6 @@ goride/
 - [ ] **Search history**: Cache recent rides/drivers
 - [ ] **Surge pricing**: Dynamic pricing based on demand
 - [ ] **Driver reviews**: Rating system with caching
-- [ ] **Alembic migrations**: Schema versioning for production
 
 
 ---
