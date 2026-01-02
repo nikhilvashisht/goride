@@ -348,6 +348,11 @@ goride/
 └── README.md                # This file
 ```
 
+## New Relic Integration
+
+<img width="1920" height="1053" alt="goride - New Relic - Brave_001" src="https://github.com/user-attachments/assets/97383a82-d6e3-484a-89d4-175c8822934b" />
+
+
 ## Future Enhancements
 
 - [ ] **Rate limiting**: Implement per-user/IP rate limits
